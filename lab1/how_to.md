@@ -70,7 +70,14 @@ Rank 2: Sending 2
 Rank 0: Sum of all messages is 6
 ```
 a) On students on average 2.9s real time
+```
+sj429144@students:~/Pulpit$ torchrun --nnodes 2 --nproc-per-node 1 example2.py
+-bash: torchrun: nie znaleziono polecenia
+sj429144@students:~/Pulpit$ torchrun --nnodes 1 --nproc-per-node 2 example2.py
+```
+
 b, c) implemented
+
 d) using time command (time execution)
 real time lib all_reduce average 3 (example 5)
 my all_reduce average 3 (example 4)
@@ -80,3 +87,7 @@ my reduce average 2.9 (example 3)
 In parenthasis is numeration of script on students.
 My implementation is full as 0 process sends 0 but it can be exacly the same doing same trick as I've
 done in all reduce (send 0 message to all except 0 before ;) 
+
+
+
+red14, green15, cyan15
