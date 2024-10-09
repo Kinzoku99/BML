@@ -18,12 +18,20 @@ ssh-add ~/.ssh/id_rsa
 - Write down processing times of 3 different configurations for number of hosts and workers `(red01 max_slots = n)`
 
 ### Excercise 1
+- Locally
 `torchrun --nnodes 1 --nproc-per-node 4 ddp.py`
 Learning took 43.70656609535217s
 `torchrun --nnodes 1 --nproc-per-node 4 ddp.py`
 Learnning took 48.722736120224s
 `torchrun --nnodes 1 --nproc-per-node 2 ddp.py`
 Learning took 30.902313232421875s
+- On students
+| Number of hosts | Number of workers | time |
+| --------------- | ----------------- | ---- |
+|        3        |        4          |  46s |
+|        3        |        3          |  42s |
+|        2        |        4          |  47s |
+|        2        |        1          |  37s |
 
 I cant run more nodes becouse on students it does not work even if I did every step but the time is lower
 when there are less workers becouse maybe locally creating workers or communication is expensive. This is the same for every worker becouse they wait for final results of all workers.
