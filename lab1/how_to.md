@@ -14,8 +14,7 @@ pip install torchvision
 ## Running distributed tasks
 ### Locally
 
-- Run `torchrun --nnodes 1 --nproc-per-node 4 ddp.py` in terminal (files are on lab machine)
-
+- Run `torchrun --nnodes 1 --nproc-per-node 4 ddp.py` in terminal
 ## Students
 - To make it work run
 ```
@@ -24,18 +23,11 @@ ssh-add ~/.ssh/id_rsa
 ```
 - Run `lk_booted_pcs` and take machines u can connect to and connect to them to make connections passwordless
 - Run `mpirun --hostfile hosts -np 4 -x MASTER_ADDR=pink00 -x MASTER_PORT=1234 ./run_training.sh` where master addess is one of hostnames in hosts file and port is any free port on this computer
-- Here I've got the errors but i've done everything from tutorial right :/
-- Write down processing times of 3 different configurations for number of hosts and workers `(red01 max_slots = n)`
 
 ### Excercise 1
-- Locally
-`torchrun --nnodes 1 --nproc-per-node 4 ddp.py`
-Learning took 43.70656609535217s
-`torchrun --nnodes 1 --nproc-per-node 4 ddp.py`
-Learnning took 48.722736120224s
-`torchrun --nnodes 1 --nproc-per-node 2 ddp.py`
-Learning took 30.902313232421875s
-- On students
+
+Run the training for several (at least 3) different configurations of the number of hosts and workers. Write down the processing times of those runs. Can you explain those numbers?
+
 | Number of hosts | Number of workers | time |
 | --------------- | ----------------- | ---- |
 |        3        |        4          |  46s |
@@ -43,32 +35,49 @@ Learning took 30.902313232421875s
 |        2        |        4          |  47s |
 |        2        |        1          |  37s |
 
-I cant run more nodes becouse on students it does not work even if I did every step but the time is lower
-when there are less workers becouse maybe locally creating workers or communication is expensive. This is the same for every worker becouse they wait for final results of all workers.
+The time is lower when there are less workers becouse maybe locally creating workers or communication is expensive. This is the same for every worker becouse they wait for final results of all workers.
 
 ## On Entropy using Slurm
 - Copy files from `files_to_send_on_entropy` to entropy
 - Change `--qos=your_qos` to output of `entropy_account_info` output qos
 - Run `sbatch slurm-ddp.sh` (and retry when it fails on downloading dataset)
 
+$${\color{red}\textrm{slurm-ddp.sh does not work}}$$
+
 ### Excercise 2
-Schedule a job such that every task will invoke `/bin/hostname` where:
+Scripts doing the task are on entropy and in this repo in `files_to_send_on_entropy`. Just launch them with sbatch.
 
-a) There is exactly one task on each of 3 nodes.
-
-b) There are 9 tasks and 3 nodes.
-
-c) Run 3 tasks on arnold and 3 on bruce
-
-d) Ask `sbatch` or `salloc` for 3 nodes and 6 tasks. Invoke srun 2 times: one with 2 nodes and 2 tasks per node, second without any parameters.
-
-Have you noticed something unusual in the results? Do you understand why they look this way?
+**Results of a)**
+arnold
+asusgpu1
+asusgpu2
+**Results of b)**
+arnold
+arnold
+arnold
+asusgpu1
+asusgpu2
+asusgpu1
+asusgpu2
+asusgpu1
+asusgpu2
+**Results of c on arnold)**
+arnold
+arnold
+arnold
+**Results of c on bruce)**
+bruce
+bruce
+bruce
+$${\color{red}\textrm{This on bruce does not work :(}}$$
 
 ### Excercise 3
 
 Run the training for several (at least 4) different allocations in the entropy. Write down the processing times of those runs. Can you explain those numbers? How do they compare to the runs in the labs?
 
 - This can be done either by `salloc` or `sbatch`.
+
+$${\color{red}\textrm{This is still not done}}$$
 
 ## Distributed communication in pytorch
 ### Excercise 4
@@ -87,25 +96,86 @@ Rank 3: Sending 3
 Rank 2: Sending 2
 Rank 0: Sum of all messages is 6
 ```
-a) On students on average 2.9s real time
+
+a) Measure the time it takes to send the message between two ranks when they are:
+
+- on the same node
+- on a different nodes
+You can choose to do it in the lab or entropy. Repeat measurment many times to decrease variability.
+
+On students on average 2.9s real time
 ```
 sj429144@students:~/Pulpit$ torchrun --nnodes 2 --nproc-per-node 1 example2.py
--bash: torchrun: nie znaleziono polecenia
 sj429144@students:~/Pulpit$ torchrun --nnodes 1 --nproc-per-node 2 example2.py
 ```
 
-b, c) implemented
+b) Implement reduce using only point-to-point communication.
 
-d) using time command (time execution)
+My implementation is full as 0 process sends 0 but it can be exacly the same doing same trick as I've
+done in all reduce (send 0 message to all except 0 before ;) 
+
+```python
+import os
+import time
+import torch
+import torch.distributed as dist
+
+WORLD_SIZE = int(os.environ['WORLD_SIZE'])
+RANK = int(os.environ['RANK']) # int(os.environ['SLURM_PROCID'])
+dist.init_process_group("gloo", rank=RANK, world_size=WORLD_SIZE)
+
+
+if RANK == 0:
+  print(f"Rank {RANK}: Sending {RANK}") # is 0 so ignore it xD
+  s = torch.tensor(0)
+  message = torch.tensor(RANK)
+  for d in range(1, WORLD_SIZE):
+    dist.recv(message, d)
+    s += message
+  print(f"Sum of all messages is {s.item()}")
+else:
+    print(f"Rank {RANK}: Sending {RANK}")
+    dist.send(torch.tensor(RANK), 0)
+```
+c) Implement all_reduce using only point-to-point communication.
+```python
+import os
+import time
+import torch
+import torch.distributed as dist
+
+WORLD_SIZE = int(os.environ['WORLD_SIZE'])
+RANK = int(os.environ['RANK']) # int(os.environ['SLURM_PROCID'])
+dist.init_process_group("gloo", rank=RANK, world_size=WORLD_SIZE)
+
+if RANK == 0:
+  print(f"Rank {RANK}: Sending {RANK}") # is 0 so ignore it xD
+  s = torch.tensor(0)
+  message = torch.tensor(RANK)
+  for d in range(1, WORLD_SIZE):
+    dist.recv(message, d)
+    s += message
+  print(f"Rank {RANK}: Sum of all messages is {s.item()}")
+
+  for d in range(1, WORLD_SIZE):
+    dist.send(s, d)
+else:
+    print(f"Rank {RANK}: Sending {RANK}")
+    dist.send(torch.tensor(RANK), 0)
+    s = torch.tensor(0)
+    dist.recv(s, 0)
+    print(f"Rank {RANK}: Sum of all messages is {s.item()}")
+```
+
+d) Measure the time of your implementations against the library ones (you can choose to do it in the lab o entropy).
+
+Using time command (time execution)
+
+```bash
 real time lib all_reduce average 3 (example 5)
 my all_reduce average 3 (example 4)
 lib reduce average 2.9 (example 2)
 my reduce average 2.9 (example 3)
+```
 
 In parenthasis is numeration of script on students.
-My implementation is full as 0 process sends 0 but it can be exacly the same doing same trick as I've
-done in all reduce (send 0 message to all except 0 before ;) 
-
-
-
-red14, green15, cyan15
