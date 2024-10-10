@@ -2,7 +2,7 @@
 #
 #SBATCH --job-name=bml_lab1
 #SBATCH --partition=common
-#SBATCH --qos=your_quos
+#SBATCH --qos=4gpu1h
 #SBATCH --time=5
 #SBATCH --output=output.txt
 #SBATCH --nodes=2

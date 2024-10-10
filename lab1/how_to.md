@@ -1,3 +1,13 @@
+# Running on students and entropy
+
+The following lines needs to be written to run on students or entropy
+```bash
+python3 -m venv venv
+source venv/bin/activate
+pip install torch
+pip install torchvision
+```
+
 ## Distributed Data Parallel
 - Run in notebook `original.py` file
 
